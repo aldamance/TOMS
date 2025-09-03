@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>DENR-CENRO Diffun — Section Chief Dashboard</title>
+  <link rel="icon" href="assets/denrlogo.png" type="image/svg+xml" />
+  <style>
+    :root{
+      --green-900:#08331a;
+      --green-700:#0b6137;
+      --muted:#6b7280;
+      --bg:#f7f9fb;
+      --card:#ffffff;
+      --radius:12px;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#f7fbf7 0%, #f7f9fb 100%);color:#0f172a}
+
+    .app{display:flex;min-height:100vh}
+    .sidebar{
+      width:260px;background:var(--green-900);color:white;padding:20px 16px;display:flex;flex-direction:column;gap:20px;transition:width .25s ease;
+      box-shadow:0 6px 18px rgba(3,10,7,0.15)
+    }
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:8px;background:linear-gradient(135deg,var(--green-700),var(--green-900));display:flex;align-items:center;justify-content:center;font-weight:700}
+    .brand h1{font-size:15px;margin:0}
+    .brand p{margin:0;font-size:11px;opacity:.92}
+
+    nav{display:flex;flex-direction:column;gap:8px}
+    .nav-item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:10px;cursor:pointer;transition:background .18s, transform .08s;user-select:none}
+    .nav-item:hover{background:rgba(255,255,255,0.06);transform:translateX(4px)}
+    .nav-item.active{background:linear-gradient(90deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03))}
+    .nav-item svg{opacity:.95}
+
+    /* Adjusted .content to allow proper flow for dashboard, centering login */
+    .content{flex:1;padding:28px; display: flex; flex-direction: column;} 
+    .topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px; width: 100%;}
+    .title{font-size:18px;font-weight:700}
+    .subtitle{color:var(--muted);font-size:13px}
+
+    .card{background:var(--card);border-radius:var(--radius);padding:18px;box-shadow:0 6px 20px rgba(16,24,40,0.06);}
+
+    form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+    input,select,textarea{width:100%;padding:10px;border-radius:8px;border:1px solid #e6eef3;background:transparent;font-size:14px}
+    textarea{min-height:60px;resize:vertical}
+    .full{grid-column:1/-1}
+    .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+    button{padding:10px 14px;border-radius:10px;border:0;background:var(--green-700);color:white;font-weight:600;cursor:pointer;transition:transform .12s, box-shadow .12s}
+    button.secondary{background:transparent;color:var(--green-700);border:1px solid rgba(11,97,55,0.12)}
+    button:active{transform:translateY(1px)}
+
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    thead th{text-align:left;padding:12px 8px;color:var(--muted);font-size:13px;border-bottom:1px solid #eef5f7}
+    tbody td{padding:12px 8px;border-bottom:1px solid #fbfcfd}
+
+    .muted{color:var(--muted)}
+    .row{display:flex;gap:12px;align-items:center}
+
+    .fade-in{animation:fadeIn .28s ease both}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+    @media (max-width:900px){
+      .sidebar{width:68px;padding:16px}
+      .brand h1,.brand p{display:none}
+      form{grid-template-columns:1fr}
+      .content {padding: 16px;}
+    }
+
+    /* Spinner */
+    @keyframes spin {to {transform: rotate(360deg)}}
+    .spinner {
+      width:16px;
+      height:16px;
+      border:2px solid #ccc;
+      border-top-color:var(--green-700);
+      border-radius:50%;
+      animation:spin 0.6s linear infinite;
+    }
+
+    /* Modal styles */
+    .modal {
+      display: none; /* Hidden by default */
+      position: fixed; /* Stay in place */
+      z-index: 1000; /* Sit on top */
+      left: 0;
+      top: 0;
+      width: 100%; /* Full width */
+      height: 100%; /* Full height */
+      overflow: auto; /* Enable scroll if needed */
+      background-color: rgba(0,0,0,0.4); /* Black w/ opacity */
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background-color: var(--card);
+      margin: auto;
+      padding: 20px;
+      border-radius: var(--radius);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+      max-width: 600px;
+      width: 90%;
+      position: relative;
+    }
+
+    .close-button {
+      color: #aaa;
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .close-button:hover,
+    .close-button:focus {
+      color: black;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    /* Updated status class styles for SC-Approved/SC-Disapproved */
+    .status-pending { color: orange; font-weight: bold; }
+    .status-sc-approved { color: var(--green-700); font-weight: bold; }
+    .status-sc-disapproved { color: #ef4444; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" id="sidebar" style="display:none;">
+      <div class="brand">
+        <div class="logo">CD</div>
+        <div>
+          <h1>Section Chief</h1>
+          <p style="font-weight:600">Dashboard</p>
+        </div>
+      </div>
+
+      <nav>
+        <div class="nav-item active">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 7h18M3 12h18M3 17h18" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div>Travel Order List</div>
+        </div>
+        <div class="nav-item" id="logoutBtn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-log-out">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+            <polyline points="17 16 22 12 17 8"/>
+            <line x1="22" x2="11" y1="12" y2="12"/>
+          </svg>
+          <div>Logout</div>
+        </div>
+      </nav>
+
+      <div style="margin-top:auto;font-size:12px;opacity:.95" id="statusContainer">
+        <div class="muted">Status:</div>
+        <div style="margin-top:6px;font-weight:700">Checking...</div>
+      </div>
+    </aside>
+
+    <main class="content">
+      <section id="login-form" class="card fade-in" style="font-size:12px; max-width:400px; width: 100%; margin: auto;">
+        <h3 style="margin-top:0; font-size:14px; text-align: center;">Section Chief Login</h3>
+        <form id="loginForm">
+          <div class="full" style="margin-bottom: 12px;">
+            <label for="username">Username</label>
+            <input id="username" name="username" type="text" required />
+          </div>
+          <div class="full" style="margin-bottom: 12px;">
+            <label for="password">Password</label>
+            <input id="password" name="password" type="password" required />
+          </div>
+          <div id="loginMessage" style="color:#ef4444; font-size:12px; margin-bottom: 12px; text-align: center;"></div>
+          <div class="actions full" style="justify-content: center;">
+            <button type="submit" id="loginBtn">Login</button>
+          </div>
+        </form>
+      </section>
+
+      <div id="topbar" class="topbar" style="display:none;">
+        <div>
+          <div class="title">Section Chief Dashboard</div>
+          <div class="subtitle">DENR-CENRO Diffun</div>
+        </div>
+        <div class="row">
+          <div class="muted">Select your name:</div>
+          <select id="chiefSelect" style="width:auto; padding:8px 12px; border-radius:8px;" disabled>
+            <option value="" disabled selected>Select Chief</option>
+            <option value="JENNIFER O. DAMANSE, RPF">JENNIFER O. DAMANSE, RPF</option>
+            <option value="JUNE M. LAZARO, RPF">JUNE M. LAZARO, RPF</option>
+            <option value="ENGR. SEBASTIAN M. MAGAT">ENGR. SEBASTIAN M. MAGAT</option>
+          </select>
+          <button id="syncBtn" class="secondary">Sync List</button>
+        </div>
+      </div>
+
+      <section id="view-list" class="card fade-in" style="font-size:12px; display:none; width: 100%;">
+        <h3 style="margin-top:0; font-size:14px;">Travel Orders for My Section</h3>
+        <div id="listContainer">
+          <div class="muted" style="font-size:12px;">
+            Please select your name to load travel orders.
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+    <div id="editModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button">&times;</span>
+      <h3 style="margin-top:0">Edit Travel Order</h3>
+      <form id="editForm">
+        <input type="hidden" id="editRowIndex" name="rowIndex">
+        <input type="hidden" name="action" value="edit">
+
+        <div>
+            <label for="editName">Name</label>
+            <select id="editName" name="name" required></select>
+        </div>
+        <div>
+            <label for="editPosition">Position</label>
+            <select id="editPosition" name="position" required></select>
+        </div>
+        <div>
+          <label for="editSection">Office / Section / Unit</label>
+          <select id="editSection" name="section" required>
+            <option value="Conservation & Development Section">Conservation & Development Section</option>
+            <option value="Monitoring & Enforcement Section">Monitoring & Enforcement Section</option>
+            <option value="Regulation & Permitting Section">Regulation & Permitting Section</option>
+            <option value="Planning & Support Unit">Planning & Support Unit</option>
+            <option value="Office of the CENR Officer">Office of the CENR Officer</option>
+          </select>
+        </div>
+        <div>
+            <label for="editSectionChief">Section Chief</label>
+            <select class="form-select" id="editSectionChief" name="sectionChief" required>
+              <option value="JENNIFER O. DAMANSE, RPF">JENNIFER O. DAMANSE, RPF</option>
+              <option value="JUNE M. LAZARO, RPF">JUNE M. LAZARO, RPF</option>
+              <option value="ENGR. SEBASTIAN M. MAGAT">ENGR. SEBASTIAN M. MAGAT</option>
+              <option value="NONE">NONE</option>
+            </select>
+        </div>
+        <div>
+          <label for="editDepartureDate">Departure Date</label>
+          <input id="editDepartureDate" name="departureDate" type="date" required />
+        </div>
+        <div>
+          <label for="editArrivalDate">Arrival Date</label>
+          <input id="editArrivalDate" name="arrivalDate" type="date" required />
+        </div>
+        <div class="full">
+          <label for="editDestination">Destination</label>
+          <textarea id="editDestination" name="destination" required></textarea>
+        </div>
+        <div class="full">
+          <label for="editPurpose">Purpose</label>
+          <textarea id="editPurpose" name="purpose" required></textarea>
+        </div>
+        <div class="full">
+            <label for="editStatus">Status</label>
+            <select id="editStatus" name="status" required>
+                <option value="Pending">Pending</option>
+                <option value="SC-Approved">SC-Approved</option>
+                <option value="SC-Disapproved">SC-Disapproved</option>
+            </select>
+        </div>
+
+        <div class="actions full">
+          <button type="button" class="secondary" id="cancelEditBtn">Cancel</button>
+          <button type="submit">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbzID3I4TqcCBfLay2jQdwoZshe41vAU42AELiesNtFjD3RisdTvC-FFgrApj-P0xRW-/exec'; // Replace with your actual deployed GAS URL
+
+    // New global variables to maintain pagination and search state
+    let currentPage = 1;
+    let currentSearchTerm = '';
+
+    // New login related elements
+    const loginForm = document.getElementById('loginForm');
+    const usernameInput = document.getElementById('username');
+    const passwordInput = document.getElementById('password');
+    const loginMessage = document.getElementById('loginMessage');
+    const loginSection = document.getElementById('login-form');
+
+    // Existing dashboard elements
+    const sidebar = document.getElementById('sidebar');
+    const topbar = document.getElementById('topbar');
+    const chiefSelect = document.getElementById('chiefSelect');
+    const syncBtn = document.getElementById('syncBtn');
+    const listContainer = document.getElementById('listContainer');
+    const editModal = document.getElementById('editModal');
+    const closeButton = document.querySelector('.close-button');
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    const editForm = document.getElementById('editForm');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+
+    let allTravelOrders = [];
+
+    const names = [
+            "Abello, Denver John T.", "Acoba, Corazon S.", "Acosta, Mharycris G.", "Agcaoili, Jaymark R.", "Aloni, Mary H.", "Andres, Edrichein P.",
+            "Ancheta, Eddie B.", "Ancheta, Vilma L.", "Arellano, Renato M.", "Bacarro, Julius Augustus B.", "Barayuga, Allan Jay D.",
+            "Barrientos, Claudine M.", "Butic, Cyril D.", "Calantas, Aldrin James P.", "Concepcion, Ronnie B.",
+            "Damance, Aldrin N.", "Damanse, Jennifer O.", "De Guzman, Mar B.", "De Vera, Jasmine Love N.", "Del Rosario, Gilbert D.",
+            "Dellias, Jude C.", "Delos Santos, Roxann B.", "Gatin, Alvin B.", "Lazaro, June M.", "Lorete, Federico T.",
+            "Mabborang, Corazon L.", "Magat, Sebastian M.", "Manglapuz, Ariel M.", "Mariñas-Gatin, Jennilyn G.", "Nahoy, Ngoy Ngoy D.",
+            "Nanglihan, Romel B.", "Navarro, Alberto, Jr. P.", "Nonan, Maribel V.", "Ocampo, Florida Blanca S.", "Pagaduan, Raymark T.",
+            "Pico, Susan D.", "Pulido, Ana Roberta", "Ribunal, Jaynaliza A.", "Romero, Marilou E.", "Romero, Randy C.",
+            "Salvador, Dennis C.", "Santiago, Alejandro G.", "Seraspi, Jan Millius A.", "Simodio, Sonny O.", "Sojor, Marie Belle E.",
+            "Soriano, Norissa Belle L.", "Viray, Rodelito B.", "Yanguas, Roque S."
+        ];
+  
+        const positions = [
+            "Administrative Aide I", "Administrative Aide VI", "Administrative Officer I", "Cartographer I", "Credit Officer", "C/Administrative Aide/Driver",
+            "C/Data Management Officer", "C/Planning Support Staff", "C/Forester", "C/Forest Extension Officer", "C/Forest Protection Officer", "C/Nursery Aide",
+            "C/Park Ranger", "C/Utility Worker", "C/Lams Encoder", "Ecosystems Management Specialist II", "Engineer II", "Forester I",
+            "Forester II", "Forester III", "Forest Ranger", "Forest Technician I", "Forest Technician II",
+            "IT Technical Support Staff", "Land Management Examiner",
+            "Land Management Officer I", "Land Management Officer II", "Land Management Officer III", "Land Management Inspector", "Park Maintenance Foreman",
+            "Park Ranger", "Senior Ecosystems Management Specialist", "Special Investigator I", "Special Investigator II", "Supervising Ecosystems Management Specialist"
+        ];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      // Populate Name dropdown in edit modal
+      const editNameSelect = document.getElementById('editName');
+      names.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        editNameSelect.appendChild(option);
+      });
+
+      // Populate Position dropdown in edit modal
+      const editPositionSelect = document.getElementById('editPosition');
+      positions.forEach(pos => {
+        const option = document.createElement('option');
+        option.value = pos;
+        option.textContent = pos;
+        editPositionSelect.appendChild(option);
+      });
+
+      // Check if user is already logged in from previous session
+      const loggedInChief = localStorage.getItem('loggedInChief');
+      if (loggedInChief) {
+        showDashboard(loggedInChief);
+      } else {
+        // If not logged in, ensure login form is visible and dashboard is hidden
+        loginSection.style.display = 'block'; // Make sure login form is displayed
+        sidebar.style.display = 'none';
+        topbar.style.display = 'none';
+        document.getElementById('view-list').style.display = 'none';
+      }
+    });
+
+    // --- Login Form Handling ---
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loginMessage.textContent = ''; // Clear previous messages
+      const loginBtn = document.getElementById('loginBtn');
+      const originalLoginBtnText = loginBtn.textContent;
+      loginBtn.textContent = 'Logging in...';
+      loginBtn.disabled = true;
+
+      const formData = new FormData(loginForm);
+      formData.append('action', 'login'); // Add action for Apps Script
+
+      try {
+        const res = await fetch(GAS_URL, { method: 'POST', body: new URLSearchParams(formData) });
+        const json = await res.json();
+
+        if (json.status === 'success') {
+          // Store logged-in chief in local storage
+          localStorage.setItem('loggedInChief', json.sectionChief);
+          showDashboard(json.sectionChief);
+          showMessageModal('✅ Login successful!');
+        } else {
+          loginMessage.textContent = json.message || 'Login failed. Please check your credentials.';
+        }
+      } catch (err) {
+        loginMessage.textContent = 'An error occurred during login. Please try again.';
+        console.error('Login error:', err);
+      } finally {
+        loginBtn.textContent = originalLoginBtnText;
+        loginBtn.disabled = false;
+      }
+    });
+
+    // Function to show the dashboard and hide login
+    function showDashboard(chiefName) {
+      loginSection.style.display = 'none';
+      sidebar.style.display = 'flex';
+      topbar.style.display = 'flex';
+      document.getElementById('view-list').style.display = 'block';
+
+      chiefSelect.value = chiefName;
+      loadList(chiefName);
+    }
+
+    // Logout functionality
+    logoutBtn.addEventListener('click', () => {
+      showConfirmationModal('Are you sure you want to log out?', () => {
+        localStorage.removeItem('loggedInChief'); // Clear stored chief
+        loginSection.style.display = 'block'; // Show login form
+        sidebar.style.display = 'none';
+        topbar.style.display = 'none';
+        document.getElementById('view-list').style.display = 'none';
+        usernameInput.value = ''; // Clear username/password fields
+        passwordInput.value = '';
+        loginMessage.textContent = ''; // Clear login message
+        chiefSelect.value = ''; // Reset chief selection
+        listContainer.innerHTML = '<div class="muted">Please select your name to load travel orders.</div>'; // Clear list
+        showMessageModal('Logged out successfully.');
+      });
+    });
+    // --- End Login Form Handling ---
+
+    chiefSelect.addEventListener('change', () => {
+      loadList(chiefSelect.value);
+    });
+
+    syncBtn.addEventListener('click', () => {
+      if (chiefSelect.value) {
+        loadList(chiefSelect.value);
+      } else {
+        showMessageModal('Please select a Section Chief first.');
+      }
+    });
+
+    closeButton.addEventListener('click', () => {
+      editModal.style.display = 'none';
+    });
+
+    cancelEditBtn.addEventListener('click', () => {
+      editModal.style.display = 'none';
+    });
+
+    window.addEventListener('click', (event) => {
+      if (event.target === editModal) {
+        editModal.style.display = 'none';
+      }
+      // Also close custom message/confirm modals if clicked outside
+      if (event.target.classList.contains('modal') && event.target.id !== 'editModal') {
+          event.target.style.display = 'none';
+      }
+    });
+
+    editForm.querySelectorAll('input, textarea').forEach(el => {
+      el.addEventListener('input', e => {
+        e.target.value = e.target.value.toUpperCase();
+      });
+    });
+
+    editForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(editForm);
+      const data = Object.fromEntries(formData.entries());
+
+      if (new Date(data.arrivalDate) < new Date(data.departureDate)) {
+        showMessageModal('Arrival date must be after or equal to the departure date.');
+        return;
+      }
+
+      const submitBtn = editForm.querySelector('button[type="submit"]');
+      const originalSubmitBtnText = submitBtn.textContent;
+      submitBtn.textContent = 'Saving...';
+      submitBtn.disabled = true;
+
+      try {
+        const formBody = new URLSearchParams(data);
+        const res = await fetch(GAS_URL, { method: 'POST', body: formBody });
+        const json = await res.json();
+
+        if (json.status === 'success') {
+          showMessageModal('✅ Travel Order updated successfully.');
+          editModal.style.display = 'none';
+          // After a successful edit, update the local data and re-render the table
+          const updatedItem = allTravelOrders.find(item => item.rowIndex === parseInt(data.rowIndex, 10));
+          if (updatedItem) {
+              // Update all relevant fields from the form data
+              updatedItem.name = data.name;
+              updatedItem.position = data.position;
+              updatedItem.section = data.section;
+              updatedItem.sectionChief = data.sectionChief;
+              updatedItem.departureDate = data.departureDate;
+              updatedItem.arrivalDate = data.arrivalDate;
+              updatedItem.destination = data.destination;
+              updatedItem.purpose = data.purpose;
+              updatedItem.status = data.status; // This is the key change for status updates
+          }
+          // Re-render the table with current pagination and search state
+          renderTable(allTravelOrders, currentPage, currentSearchTerm);
+
+        } else {
+          showMessageModal(json.message || 'Server returned an unexpected response.');
+        }
+      } catch (err) {
+        showMessageModal(`❌ Update failed:\n${err.message}`);
+      } finally {
+        submitBtn.textContent = originalSubmitBtnText;
+        submitBtn.disabled = false;
+      }
+    });
+    
+    // The updateStatus function is now only called from the edit modal or similar logic, not direct buttons in the table row
+    async function updateStatus(rowIndex, status) {
+      showConfirmationModal(`Are you sure you want to set status to "${status}" for this travel order?`, async () => {
+        try {
+          const data = {
+            action: 'updateStatus',
+            rowIndex: rowIndex,
+            status: status
+          };
+          const formBody = new URLSearchParams(data);
+          const res = await fetch(GAS_URL, { method: 'POST', body: formBody });
+          const json = await res.json();
+
+          if (json.status === 'success') {
+            showMessageModal(`✅ Travel Order status updated to "${status}".`);
+            
+            // Find and update the specific item in the client-side cache
+            const updatedItem = allTravelOrders.find(item => item.rowIndex === rowIndex);
+            if (updatedItem) {
+                updatedItem.status = status; // Update the status directly in the cached object
+            }
+            
+            // Re-render the current view of the table using global state
+            renderTable(allTravelOrders, currentPage, currentSearchTerm);
+
+          } else {
+            showMessageModal(json.message || 'Server returned an unexpected response.');
+          }
+        } catch (err) {
+          showMessageModal(`❌ Status update failed:\n${err.message}`);
+        }
+      });
+    }
+
+    async function loadList(selectedChief) {
+      if (!selectedChief) {
+        listContainer.innerHTML = '<div class="muted">Please select your name to load travel orders.</div>';
+        return;
+      }
+
+      listContainer.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;color:var(--muted)">
+          <div class="spinner"></div>
+          Loading…
+        </div>`;
+      try {
+        const res = await fetch(`${GAS_URL}?sectionChief=${encodeURIComponent(selectedChief)}`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const rows = await res.json();
+        if (!Array.isArray(rows)) throw new Error("Invalid JSON format");
+        
+        allTravelOrders = rows;
+        // When initially loading the list, reset pagination to page 1
+        currentPage = 1;
+        currentSearchTerm = '';
+        renderTable(allTravelOrders, currentPage, currentSearchTerm);
+      } catch (err) {
+        console.error("Error loading list:", err);
+        listContainer.innerHTML = '<div class="muted">Failed to fetch list. Make sure your Google Apps Script is updated and deployed correctly.</div>';
+      }
+    }
+
+    function esc(text) {
+      return String(text || '').replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[m]));
+    }
+
+    function getVal(row, keys) {
+      for (let k of keys) {
+        let v = row[k];
+        if (v !== undefined && v !== null && String(v).trim() !== '') return String(v).trim();
+      }
+      return '';
+    }
+
+    function formatDateForInput(dateString) {
+      const d = new Date(dateString);
+      if (isNaN(d.getTime())) return '';
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function formatDateTime(d) {
+      if (!d) return '';
+      const date = new Date(d);
+      return isNaN(date.getTime()) ? d : date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+    }
+
+    function renderTable(rows, page = 1, searchTerm = '') {
+      // Update global state variables
+      currentPage = page;
+      currentSearchTerm = searchTerm;
+
+      const rowsPerPage = 10;
+      
+      const filteredRows = rows.filter(r => {
+        const values = [
+          getVal(r, ['Name', 'name']),
+          getVal(r, ['Position', 'position']),
+          getVal(r, ['Section', 'section']),
+          getVal(r, ['Purpose', 'purpose']),
+          getVal(r, ['Destination', 'destination'])
+        ].join(' ').toLowerCase();
+
+        return values.includes(searchTerm.toLowerCase());
+      });
+
+      if (filteredRows.length === 0) {
+        listContainer.innerHTML = '<div class="muted">No travel orders found.</div>';
+        return;
+      }
+
+      const start = (page - 1) * rowsPerPage;
+      const paginatedRows = filteredRows.slice(start, start + rowsPerPage);
+
+      const table = document.createElement('table');
+      table.style.width = '100%';
+      table.style.borderCollapse = 'collapse';
+      table.style.marginTop = '12px';
+
+      const thead = document.createElement('thead');
+      const trh = document.createElement('tr');
+      ['Name', 'Position', 'Section', 'Departure Date', 'Arrival Date', 'Purpose', 'Destination', 'Status', 'Actions']
+        .forEach(h => {
+          const th = document.createElement('th');
+          th.textContent = h;
+          th.style.textAlign = 'left';
+          th.style.padding = '12px 8px';
+          th.style.color = 'var(--muted)';
+          th.style.fontSize = '13px';
+          th.style.borderBottom = '1px solid #eef5f7';
+          trh.appendChild(th);
+        });
+      thead.appendChild(trh);
+      table.appendChild(thead);
+
+      const tbody = document.createElement('tbody');
+      paginatedRows.forEach(r => {
+        const tr = document.createElement('tr');
+        const name = getVal(r, ['Name', 'name']);
+        const position = getVal(r, ['Position', 'position']);
+        const section = getVal(r, ['Section', 'section']);
+        const departure = getVal(r, ['Departure Date', 'departureDate']);
+        const arrival = getVal(r, ['Arrival Date', 'arrivalDate']);
+        const purpose = getVal(r, ['Purpose', 'purpose']);
+        const destination = getVal(r, ['Destination', 'destination']);
+        const status = getVal(r, ['Status', 'status']) || 'Pending';
+        const rowIndex = r.rowIndex;
+
+        [
+          name,
+          position,
+          section,
+          formatDateTime(departure),
+          formatDateTime(arrival),
+          purpose,
+          destination,
+          status
+        ].forEach((cellText, index) => {
+          const td = document.createElement('td');
+          td.style.padding = '12px 8px';
+          td.style.borderBottom = '1px solid #fbfcfd';
+          if (index === 5 || index === 6) { // Purpose or Destination
+            td.title = cellText || '';
+            let displayText = (cellText && cellText.length > 20) ? cellText.substring(0, 20) + '…' : (cellText || '-');
+            td.textContent = displayText;
+          } else if (index === 7) { // Status
+            td.textContent = cellText;
+            if (cellText.toLowerCase() === 'sc-approved') {
+                td.classList.add('status-sc-approved');
+            } else if (cellText.toLowerCase() === 'sc-disapproved') {
+                td.classList.add('status-sc-disapproved');
+            } else {
+                td.classList.add('status-pending');
+            }
+          }
+          else {
+            td.textContent = esc(cellText) || '-';
+          }
+          tr.appendChild(td);
+        });
+
+        const actionsTd = document.createElement('td');
+        actionsTd.style.whiteSpace = 'nowrap';
+        
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'View/Update';
+        editBtn.style.backgroundColor = 'transparent';
+        editBtn.style.color = 'var(--green-700)';
+        editBtn.style.border = '1px solid rgba(11,97,55,0.12)';
+        editBtn.style.padding = '5px 8px';
+        editBtn.style.borderRadius = '5px';
+        
+        if (status.toLowerCase() === 'cenro-approved') {
+            editBtn.disabled = true;
+            editBtn.style.opacity = '0.5';
+            editBtn.style.cursor = 'not-allowed';
+            editBtn.style.pointerEvents = 'none';
+        } else {
+            editBtn.addEventListener('click', () => openEditModal(r, rowIndex));
+        }
+        
+        actionsTd.appendChild(editBtn);
+        tr.appendChild(actionsTd);
+
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      listContainer.innerHTML = '';
+
+      const filterDiv = document.createElement('div');
+      filterDiv.style.display = 'flex';
+      filterDiv.style.gap = '12px';
+      filterDiv.style.marginBottom = '12px';
+
+      const searchInput = document.createElement('input');
+      searchInput.type = 'text';
+      searchInput.placeholder = 'Search...';
+      searchInput.value = searchTerm;
+      searchInput.style.width = '200px';
+      searchInput.style.padding = '8px';
+      searchInput.style.borderRadius = '8px';
+      searchInput.style.border = '1px solid #e6eef3';
+      searchInput.addEventListener('input', () => {
+        renderTable(allTravelOrders, 1, searchInput.value);
+      });
+      filterDiv.appendChild(searchInput);
+      listContainer.appendChild(filterDiv);
+      listContainer.appendChild(table);
+
+      const totalPages = Math.ceil(filteredRows.length / rowsPerPage);
+      const paginationDiv = document.createElement('div');
+      paginationDiv.style.marginTop = '12px';
+      for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.style.padding = '5px 10px';
+        btn.style.borderRadius = '5px';
+        btn.style.marginRight = '5px';
+        btn.classList.add('pagination-button'); // Add a class for easier selection
+
+        // Apply active styling based on current page
+        if (i === page) {
+            btn.classList.add('active'); // Add active class
+            btn.style.border = 'none';
+            btn.style.backgroundColor = 'var(--green-700)';
+            btn.style.color = 'white';
+        } else {
+            btn.classList.remove('active'); // Ensure active class is removed from others
+            btn.style.border = '1px solid rgba(11,97,55,0.12)';
+            btn.style.backgroundColor = 'transparent';
+            btn.style.color = 'var(--green-700)';
+        }
+
+        btn.addEventListener('click', () => {
+          renderTable(allTravelOrders, i, searchInput.value);
+        });
+        paginationDiv.appendChild(btn);
+      }
+      listContainer.appendChild(paginationDiv);
+    }
+
+    function openEditModal(rowData, rowIndex) {
+      document.getElementById('editRowIndex').value = rowIndex;
+      document.getElementById('editName').value = getVal(rowData, ['Name', 'name']);
+      document.getElementById('editPosition').value = getVal(rowData, ['Position', 'position']);
+      document.getElementById('editSection').value = getVal(rowData, ['Section', 'section']);
+      
+      const editSectionChiefSelect = document.getElementById('editSectionChief');
+      editSectionChiefSelect.value = getVal(rowData, ['SectionChief', 'sectionChief']).trim();
+
+      document.getElementById('editDepartureDate').value = formatDateForInput(getVal(rowData, ['Departure Date', 'departureDate']));
+      document.getElementById('editArrivalDate').value = formatDateForInput(getVal(rowData, ['Arrival Date', 'arrivalDate']));
+
+      document.getElementById('editDestination').value = getVal(rowData, ['Destination', 'destination']);
+      document.getElementById('editPurpose').value = getVal(rowData, ['Purpose', 'purpose']);
+      document.getElementById('editStatus').value = getVal(rowData, ['Status', 'status']) || 'Pending';
+
+      editModal.style.display = 'flex';
+    }
+
+    // --- Custom Modal Functions for alerts and confirmations (replacing native alert/confirm) ---
+    function showMessageModal(message) {
+      const messageModal = document.createElement('div');
+      messageModal.className = 'modal';
+      messageModal.style.display = 'flex';
+      messageModal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+          <span class="close-button">&times;</span>
+          <p>${esc(message)}</p>
+          <button style="margin-top: 15px; background-color: var(--green-700); color: white;" onclick="this.closest('.modal').style.display='none';">OK</button>
+        </div>
+      `;
+      document.body.appendChild(messageModal);
+      messageModal.querySelector('.close-button').onclick = () => messageModal.style.display = 'none';
+      messageModal.onclick = (event) => { if (event.target === messageModal) messageModal.style.display = 'none'; };
+    }
+
+    function showConfirmationModal(message, onConfirm) {
+      const confirmModal = document.createElement('div');
+      confirmModal.className = 'modal';
+      confirmModal.style.display = 'flex';
+      confirmModal.innerHTML = `
+        <div class="modal-content" style="max-width: 400px; text-align: center;">
+          <span class="close-button">&times;</span>
+          <p>${esc(message)}</p>
+          <div style="display: flex; justify-content: center; gap: 10px; margin-top: 15px;">
+            <button class="secondary" onclick="this.closest('.modal').style.display='none';">Cancel</button>
+            <button style="background-color: var(--green-700); color: white;" id="confirmActionButton">Confirm</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(confirmModal);
+      confirmModal.querySelector('.close-button').onclick = () => confirmModal.style.display = 'none';
+      confirmModal.onclick = (event) => { if (event.target === confirmModal) confirmModal.style.display = 'none'; };
+
+      document.getElementById('confirmActionButton').onclick = () => {
+        confirmModal.style.display = 'none';
+        onConfirm();
+      };
+    }
+    // --- End Custom Modal Functions ---
+
+    async function checkConnection() {
+      const statusEl = document.getElementById('statusContainer');
+      try {
+        const res = await fetch(GAS_URL);
+        if (res.ok) {
+          statusEl.innerHTML = `<div class="muted">Status:</div>
+            <div style="margin-top:6px;font-weight:700;color:#22c55e">Connected</div>`;
+        } else {
+          throw new Error();
+        }
+      } catch {
+        statusEl.innerHTML = `<div class="muted">Status:</div>
+          <div style="margin-top:6px;font-weight:700;color:#ef4444">Not Connected</div>`;
+      }
+    }
+    checkConnection();
+
+    window.addEventListener('load', () => {
+      document.querySelectorAll('.card').forEach((c, i) => {
+        c.style.animationDelay = (i * 40) + 'ms';
+      });
+    });
+  </script>
+</body>
+</html>
